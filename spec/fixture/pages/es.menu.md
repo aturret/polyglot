@@ -1,7 +1,8 @@
 ---
 title: Menu
-permalink: menu
+permalink: el-menu
 lang: es
+page_id: menu
 ---
 
-# menú
+# el menú

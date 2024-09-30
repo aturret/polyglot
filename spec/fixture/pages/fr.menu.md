@@ -1,7 +1,8 @@
 ---
 title: Menu
-permalink: menu
+permalink: le-menu
 lang: fr
+page_id: menu
 ---
 
 # français menu

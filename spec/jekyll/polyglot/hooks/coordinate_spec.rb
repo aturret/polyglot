@@ -62,6 +62,15 @@ Dir.mktmpdir do |_|
       expect(@site.data['strings']['banana']).to eq('banana') # Populated from @site.data['strings']['apple']
     end
 
+    it "site.process triggers :polyglot, :post_write hook" do
+      hook_called = false
+      Jekyll::Hooks.register(:polyglot, :post_write) do |_site|
+        hook_called = true
+      end
+      @site.process
+      expect(hook_called).to be true
+    end
+
     describe @coordinate_documents do
       it 'test fixtures in the default lang' do
         expect(@site.source).to end_with('spec/fixture')
@@ -83,6 +92,7 @@ Dir.mktmpdir do |_|
 
       it 'should not include files in the default_lang with the active_lang' do
         @site.process_language 'fr'
+        print @site.pages.map { |doc| doc.name }
         expect(@site.pages.map { |doc| doc.name }).not_to include('en.menu.md')
       end
 
@@ -94,6 +104,28 @@ Dir.mktmpdir do |_|
       it 'should not be included if the active_lang is not part of the lang-exclusive' do
         @site.process_language 'fr'
         expect(@site.pages.map { |doc| doc.name }).not_to include('es.samba.md')
+      end
+
+      it 'should respect permalinks when page_id is specified' do
+        @site.process_language 'en'
+        expect(@site.pages.select { |doc| doc.name == 'en.about.md' }.first().permalink).to eq('about')
+        expect(@site.pages.select { |doc| doc.name == 'en.menu.md' }.first().permalink).to eq('the-menu')
+        @site.process_language 'es'
+        expect(@site.pages.select { |doc| doc.name == 'es.menu.md' }.first().permalink).to eq('el-menu')
+        expect(@site.pages.select { |doc| doc.name == 'es.samba.md' }.first().permalink).to eq('samba')
+        @site.process_language 'fr'
+        expect(@site.pages.select { |doc| doc.name == 'fr.menu.md' }.first().permalink).to eq('le-menu')
+        expect(@site.pages.select { |doc| doc.name == 'fr.members.md' }.first().permalink).to eq('members')
+      end
+      
+      it 'should contain permalink_lang when page_id is specified' do
+        @site.process_language 'en'
+        menu_permalink_lang = @site.pages.select { |doc| doc.name == 'en.menu.md' }.first().data['permalink_lang']
+        expect(menu_permalink_lang).to have_attributes(size: 3)
+        expect(menu_permalink_lang.keys).to match_array(@site.config['languages'])
+        expect(menu_permalink_lang['en']).to eq('the-menu')
+        expect(menu_permalink_lang['es']).to eq('el-menu')
+        expect(menu_permalink_lang['fr']).to eq('le-menu')
       end
     end
   end
