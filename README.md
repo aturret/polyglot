@@ -1,7 +1,8 @@
 🔤 Polyglot
 ---
 [![Gem Version](https://badge.fury.io/rb/jekyll-polyglot.svg)](https://badge.fury.io/rb/jekyll-polyglot)
-[![CircleCI](https://circleci.com/gh/untra/polyglot/tree/master.svg?style=svg)](https://circleci.com/gh/untra/polyglot/?branch=master)
+[![CircleCI](https://circleci.com/gh/untra/polyglot/tree/main.svg?style=svg)](https://circleci.com/gh/untra/polyglot/?branch=main)
+[![codecov](https://codecov.io/gh/untra/polyglot/graph/badge.svg?token=AAIYBIxdWr)](https://codecov.io/gh/untra/polyglot)
 
 __Polyglot__ is a fast, painless, open-source internationalization plugin for [Jekyll](http://jekyllrb.com) blogs. Polyglot is easy to set up and use with any Jekyll project, and it scales to the languages you want to support. With fallback support for missing content, automatic url relativization, and powerful SEO tools, Polyglot allows any multi-language jekyll blog to focus on content without the cruft.
 
@@ -27,30 +28,29 @@ In your `_config.yml` file, add the following preferences
 ```YAML
 languages: ["en", "sv", "de", "fr"]
 default_lang: "en"
-exclude_from_localization: ["javascript", "images", "css", "public"]
+exclude_from_localization: ["javascript", "images", "css", "public", "sitemap"]
 parallel_localization: true
+url: https://polyglot.untra.io
 ```
 These configuration preferences indicate
 - what i18n languages you wish to support
 - what is your default "fallback" language for your content
-- what root level files/folders are excluded from localization, based
-  on if their paths start with any of the excluded regexp substrings. (this is different from the jekyll `exclude: [ .gitignore ]` ; you should `exclude` files and directories in your repo you dont want in your built site at all, and `exclude_from_localization` files and directories you want to see in your built site, but not in your sublanguage sites.)
-- whether to run language processing in parallel or serial
+- what root level files/folders are excluded from localization, based on if their paths start with any of the excluded regexp substrings. (this is different from the jekyll `exclude: [ .gitignore ]` ; you should `exclude` files and directories in your repo you dont want in your built site at all, and `exclude_from_localization` files and directories you want to see in your built site, but not in your sublanguage sites.)
+- whether to run language processing in parallel or serial. Set to `false` if building on Windows hosts, or if Polyglot collides with other Jekyll plugins.
+- your jekyll website production url. Make sure this value is set; Polyglot requires this to relative site urls correctly, and to make functioning language switchers.
 
-The optional `lang_from_path: true` option enables getting page
-language from the first or second path segment, e.g `de/first-one.md`, or
-`_posts/zh_Hans_HK/use-second-segment.md` , if the lang frontmatter isn't defined.
+The optional `lang_from_path: true` option enables getting the page language from a filepath segment seperated by `/` or `.`, e.g `de/first-one.md`, or `_posts/zh_HK/use-second-segment.md` , if the lang frontmatter isn't defined.
 
 ## How To Use It
 When adding new posts and pages, add to the YAML front matter:
 ```
 lang: sv
 ```
-or whatever appropriate [I18n language code](https://developer.chrome.com/webstore/i18n)
+or whatever appropriate [I18n language code](https://developer.chrome.com/docs/extensions/reference/api/i18n#locales)
 the page should build for. And you're done. Ideally, when designing your site, you should
 organize files by their relative urls.
 
-You can see how the live Polyglot website [configures and supports multiple languages](https://github.com/untra/polyglot/blob/master/site/_config.yml#L28-L37), and examples of [community](https://github.com/untra/polyglot/pull/155) [language](https://github.com/untra/polyglot/pull/167) [contributions](https://github.com/untra/polyglot/pull/177).
+You can see how the live Polyglot website [configures and supports multiple languages](https://github.com/untra/polyglot/blob/main/site/_config.yml#L28-L37), and examples of [community](https://github.com/untra/polyglot/pull/155) [language](https://github.com/untra/polyglot/pull/167) [contributions](https://github.com/untra/polyglot/pull/177).
 
 Polyglot works by associating documents with similar permalinks to the `lang` specified in their frontmatter. Files that correspond to similar routes should have identical permalinks. If you don't provide a permalink for a post, ___make sure you are consistent___ with how you place and name corresponding files:
 ```
@@ -112,7 +112,7 @@ Estos somos nosotros!
 ```
 
 Additionally, if you are also using the `jekyll-redirect-from` plugin, pages coordinated this way will automatically have redirects created between pages.
-So `/es/about` will automatically redirect to `/es/acerca-de` and `/acerca-de` can redirect to `/about`. If you use this approach, be sure to also employ a customized [redirect.html](https://github.com/untra/polyglot/blob/master/site/_layouts/redirect.html).
+So `/es/about` will automatically redirect to `/es/acerca-de` and `/acerca-de` can redirect to `/about`. If you use this approach, be sure to also employ a customized [redirect.html](https://github.com/untra/polyglot/blob/main/site/_layouts/redirect.html).
 
 #### Fallback Language Support
 Lets say you are building your website. You have an `/about/` page written in *english*, *german* and
@@ -160,7 +160,7 @@ becomes
 
 ### Disabling Url Relativizing
 _New in 1.4.0_
-If you dont want a href attribute to be relativized (such as for making [a language switcher](https://github.com/untra/polyglot/blob/master/site/_includes/sidebar.html#L40)), you can use the block tag:
+If you dont want a href attribute to be relativized (such as for making [a language switcher](https://github.com/untra/polyglot/blob/main/site/_includes/sidebar.html#L40)), you can use the block tag:
 
 ```html
 {% static_href %}href="..."{% endstatic_href %}
@@ -251,7 +251,7 @@ Polyglot will only start builds after it confirms there is a cpu core ready to a
 ### Writing Tests and Debugging
 _:wave: I need assistance with modern ruby best practices for test maintenance with rake and rspec. If you got the advice I have the ears._
 
-Tests are run with `bundle exec rake`. Tests are in the `/spec` directory, and test failure output detail can be examined in the `rspec.xml` file.
+Tests are run with `test.sh`. Tests are in the `/spec` directory, and test failure output detail can be examined in the `rspec.json` file. Code Coverage details are in the the `coverage` directory.
 
 ## Features
 This plugin stands out from other I18n Jekyll plugins.
@@ -260,7 +260,7 @@ This plugin stands out from other I18n Jekyll plugins.
 - provides the liquid tag `{{ site.languages }}` to get an array of your I18n strings.
 - provides the liquid tag `{{ site.default_lang }}` to get the default_lang I18n string.
 - provides the liquid tag `{{ site.active_lang }}` to get the I18n language string the website was built for. Alternative names for `active_lang` can be configured via `config.lang_vars`.
-- provides the liquid tag `{{ I18n_Headers https://yourwebsite.com/ }}` to append SEO bonuses to your website.
+- provides the liquid tag `{{ I18n_Headers }}` to append SEO bonuses to your website.
 - provides the liquid tag `{{ Unrelativized_Link href="/hello" }}` to make urls that do not get influenced by url correction regexes.
 - provides `site.data` localization for efficient rich text replacement.
 - a creator that will answer all of your questions and issues.
@@ -271,6 +271,13 @@ Jekyll-polyglot has a few spectacular [Search Engine Optimization techniques](ht
 ### Sitemap generation
 
 See the example [sitemap.xml](/site/sitemap.xml) and [robots.txt](/site/robots.txt) for how to automatically generate a multi-language sitemap for your page and turn it in for the SEO i18n credit.
+
+The [official Sitemap protocol documentation](https://www.sitemaps.org/protocol.html#location) states:
+> "The location of a Sitemap file determines the set of URLs that can be included in that Sitemap. A Sitemap file located at http://example.com/catalog/sitemap.xml can include any URLs starting with http://example.com/catalog/ but can not include URLs starting with http://example.com/images/."
+
+> "It is strongly recommended that you place your Sitemap at the root directory of your web server."
+
+To comply with this, 'sitemap.xml' should be added to the 'exclude_from_localization' list to ensure that only one `sitemap.xml` file exists in the root directory, rather than creating separate ones for each language.
 
 ## Compatibility
 Currently supports Jekyll 3.0 , and Jekyll 4.0
@@ -291,17 +298,18 @@ If you have something you'd like to contribute to jekyll-polyglot, please open a
 These are talented and considerate software developers across the world that have lent their support to this project.
 **Thank You! ¡Gracias! Merci! Danke! 감사합니다! תודה רבה! Спасибо! Dankjewel! 谢谢！Obrigado!**
 
+* [@yunseo-kim](https://github.com/yunseo-kim) [improved i18n sitemaps]((https://polyglot.untra.io/2025/01/18/polyglot-1.9.0/))
 * [@blackpill](https://github.com/blackpill) [1.8.1](https://polyglot.untra.io/2024/08/18/polyglot-1.8.1/)
 * [@hacketiwack](https://github.com/hacketiwack) [1.8.1](https://polyglot.untra.io/2024/08/18/polyglot-1.8.1/)
 * [@jerturowetz](https://github.com/jerturowetz) [sitemap generation](https://polyglot.untra.io/2024/03/17/polyglot-1.8.0/)
 * [@antoniovazquezblanco](https://github.com/antoniovazquezblanco) [1.7.0](https://polyglot.untra.io/2023/10/29/polyglot-1.7.0/)
-* [@salinatedcoffee](https://github.com/SalinatedCoffee) [ko support](https://polyglot.untra.io/2023/02/27/korean-support/)
-* [@aturret](https://github.com/aturret) [zh-CN support](https://polyglot.untra.io/2023/06/08/polyglot-1.6.0-chinese-support/)
+* [@salinatedcoffee](https://github.com/SalinatedCoffee) [ko support](https://polyglot.untra.io/ko/2023/02/27/korean-support/)
+* [@aturret](https://github.com/aturret) [zh-CN support](https://polyglot.untra.io/zh-CN/2023/06/08/polyglot-1.6.0-chinese-support/)
 * [@dougieh](https://github.com/dougieh) [1.5.1](https://polyglot.untra.io/2022/10/01/polyglot-1.5.1/)
-* [@pandermusubi](https://github.com/PanderMusubi) [nl support](https://polyglot.untra.io/2022/01/15/dutch-site-support/)
+* [@pandermusubi](https://github.com/PanderMusubi) [nl support](https://polyglot.untra.io/nl/2022/01/15/dutch-site-support/)
 * [@obfusk](https://github.com/obfusk) [1.5.0](https://polyglot.untra.io/2021/07/17/polyglot-1.5.0/)
 * [@eighthave](https://github.com/eighthave) [1.5.0](https://polyglot.untra.io/2021/07/17/polyglot-1.5.0/)
-* [@george-gca](https://github.com/george-gca) [Localized Variables](https://polyglot.untra.io/2024/02/29/localized-variables.md)
+* [@george-gca](https://github.com/george-gca) [pt-BR support](https://polyglot.untra.io/pt-BR/2024/02/29/localized-variables.md)
 
 ### Other Websites Built with Polyglot
 Feel free to open a PR and list your multilingual blog here you may want to share:
@@ -317,6 +325,9 @@ Feel free to open a PR and list your multilingual blog here you may want to shar
 * [Yi Yunseok's personal blog website](https://Yi-Yunseok.GitHub.io)
 * [Tarlogic Cybersecurity](https://www.tarlogic.com/)
 * [A beautiful, simple, clean, and responsive Jekyll theme for academics](https://github.com/george-gca/multi-language-al-folio)
+* [AnotherTurret just another study note blog](https://aturret.space/)
+* [Diciotech is a collaborative online tech dictionary](https://diciotech.netlify.app/)
+* [Yunseo Kim's Study Notes](https://www.yunseo.kim/)
 
 ## 2.0 Roadmap
 * [x] - **site language**: portuguese Brazil `pt-BR`
@@ -333,4 +344,4 @@ Feel free to open a PR and list your multilingual blog here you may want to shar
 * [x] - update CI provider
 
 ## Copyright
-Copyright (c) Samuel Volin 2023. License: MIT
+Copyright (c) Samuel Volin 2025. License: MIT

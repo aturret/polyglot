@@ -1,9 +1,10 @@
+require 'English'
 require 'etc'
 
 include Process
 module Jekyll
   class Site
-    attr_reader :default_lang, :languages, :exclude_from_localization, :lang_vars
+    attr_reader :default_lang, :languages, :exclude_from_localization, :lang_vars, :lang_from_path
     attr_accessor :file_langs, :active_lang
 
     def prepare
@@ -31,7 +32,7 @@ module Jekyll
     alias process_orig process
     def process
       prepare
-      all_langs = (@languages + [@default_lang]).uniq
+      all_langs = ([@default_lang] + @languages).uniq
       if @parallel_localization
         nproc = Etc.nprocessors
         pids = {}
@@ -42,11 +43,11 @@ module Jekyll
             end
             while pids.length >= (lang == all_langs[-1] ? 1 : nproc)
               sleep 0.1
-              pids.map do |lang, pid|
+              pids.map do |pid_lang, pid|
                 next unless waitpid pid, Process::WNOHANG
 
-                pids.delete lang
-                raise "Polyglot subprocess #{pid} (#{lang}) failed (#{$?.exitstatus})" unless $?.success?
+                pids.delete pid_lang
+                raise "Polyglot subprocess #{pid} (#{lang}) failed (#{$CHILD_STATUS.exitstatus})" unless $CHILD_STATUS.success?
               end
             end
           end
@@ -108,19 +109,23 @@ module Jekyll
       @exclude = old_exclude
     end
 
+    def split_on_multiple_delimiters(string)
+      delimiters = ['.', '/']
+      regex = Regexp.union(delimiters)
+      string.split(regex)
+    end
+
     def derive_lang_from_path(doc)
       unless @lang_from_path
         return nil
       end
 
-      segments = doc.relative_path.split('/')
-      if doc.relative_path[0] == '_' \
-        && segments.length > 2 \
-        && segments[1] =~ /^[a-z]{2,3}(:?[_-](:?[A-Za-z]{2}){1,2}){0,2}$/
-        return segments[1]
-      elsif segments.length > 1 \
-        && segments[0] =~ /^[a-z]{2,3}(:?[_-](:?[A-Za-z]{2}){1,2}){0,2}$/
-        return segments[0]
+      segments = split_on_multiple_delimiters(doc.path)
+      # loop through all segments and check if they match the language regex
+      segments.each do |segment|
+        if @languages.include?(segment)
+          return segment
+        end
       end
 
       nil
@@ -152,21 +157,28 @@ module Jekyll
         approved[page_id] = doc
         @file_langs[page_id] = lang
       end
-      approved.values.each {|doc| assignPageRedirects(doc, docs) }
-      approved.values.each {|doc| assignPageLanguagePermalinks(doc, docs) }
+      approved.each_value do |doc|
+        assignPageRedirects(doc, docs)
+        assignPageLanguagePermalinks(doc, docs)
+      end
       approved.values
     end
 
     def assignPageRedirects(doc, docs)
       pageId = doc.data['page_id']
       if !pageId.nil? && !pageId.empty?
-        lang = doc.data['lang'] || derive_lang_from_path(doc) || @default_lang
-        langPrefix = lang === @default_lang ? '' : "#{lang}/"
-        redirectDocs = docs.select do |dd|
-          doclang = dd.data['lang'] || derive_lang_from_path(dd) || @default_lang
-          dd.data['page_id'] == pageId && doclang != lang && dd.data['permalink'] != doc.data['permalink']
+        redirects = []
+
+        docs_with_same_id = docs.select { |dd| dd.data['page_id'] == pageId }
+
+        # For each document with the same page_id
+        docs_with_same_id.each do |dd|
+          # Add redirect if it's a different permalink
+          if dd.data['permalink'] != doc.data['permalink']
+            redirects << dd.data['permalink']
+          end
         end
-        redirects = redirectDocs.map { |dd| dd.data['permalink'] }
+
         doc.data['redirect_from'] = redirects
       end
     end
@@ -210,7 +222,7 @@ module Jekyll
     def document_url_regex
       regex = ''
       (@languages || []).each do |lang|
-        regex += "([\/\.]#{lang}[\/\.])|"
+        regex += "([/.]#{lang}[/.])|"
       end
       regex.chomp! '|'
       /#{regex}/
@@ -227,7 +239,7 @@ module Jekyll
           regex += "(?!#{x})"
         end
         @languages.each do |x|
-          regex += "(?!#{x}\/)"
+          regex += "(?!#{x}/)"
         end
       end
       start = disabled ? 'ferh' : 'href'
@@ -245,18 +257,19 @@ module Jekyll
           regex += "(?!#{x})"
         end
         @languages.each do |x|
-          regex += "(?!#{x}\/)"
+          regex += "(?!#{x}/)"
         end
       end
       start = disabled ? 'ferh' : 'href'
-      %r{(?<!hreflang="#{@default_lang}" )#{start}="?#{url}#{@baseurl}/((?:#{regex}[^,'"\s/?.]+\.?)*(?:/[^\]\[)("'\s]*)?)"}
+      neglookbehind = disabled ? "" : "(?<!hreflang=\"#{@default_lang}\" |rel=\"canonical\" )"
+      %r{#{neglookbehind}#{start}="?#{url}#{@baseurl}/((?:#{regex}[^,'"\s/?.]+\.?)*(?:/[^\]\[)("'\s]*)?)"}
     end
 
     def relativize_urls(doc, regex)
       return if doc.output.nil?
 
       modified_output = doc.output.dup
-      modified_output.gsub!(regex, "href=\"#{@baseurl}/#{@active_lang}/" + '\1"')
+      modified_output.gsub!(regex, "href=\"#{@baseurl}/#{@active_lang}/\\1\"")
       doc.output = modified_output
     end
 
@@ -264,7 +277,7 @@ module Jekyll
       return if doc.output.nil?
 
       modified_output = doc.output.dup
-      modified_output.gsub!(regex, "href=\"#{url}#{@baseurl}/#{@active_lang}/" + '\1"')
+      modified_output.gsub!(regex, "href=\"#{url}#{@baseurl}/#{@active_lang}/\\1\"")
       doc.output = modified_output
     end
 
@@ -272,7 +285,7 @@ module Jekyll
       return if doc.output.nil?
 
       modified_output = doc.output.dup
-      modified_output.gsub!(regex, "href=\"#{url}#{@baseurl}/" + '\1"')
+      modified_output.gsub!(regex, "href=\"#{url}#{@baseurl}/\\1\"")
       doc.output = modified_output
     end
 
@@ -280,7 +293,7 @@ module Jekyll
       return if doc.output.nil?
 
       modified_output = doc.output.dup
-      modified_output.gsub!(regex, "href=\"#{@baseurl}/" + '\1"')
+      modified_output.gsub!(regex, "href=\"#{@baseurl}/\\1\"")
       doc.output = modified_output
     end
   end
